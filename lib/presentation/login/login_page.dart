@@ -1,3 +1,5 @@
+import 'package:face_validator/presentation/homescreen/homescreen.dart';
+import 'package:face_validator/presentation/login/bloc/login_bloc.dart';
 import 'package:face_validator/presentation/register/register_page.dart';
 import 'package:flutter/material.dart';
 
@@ -14,6 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  final LoginBloc _loginBloc = LoginBloc();
 
   @override
   void dispose() {
@@ -22,17 +25,31 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleLogin() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  try {
+    final success = await _loginBloc.login(
+      email: _usernameController.text.trim(),
+      password: _passwordController.text,
+    );
 
-    // TODO: replace with actual auth call
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-    });
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Homescreen(),
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString())),
+    );
   }
+}
 
   void _handleRegister() {
     Navigator.of(context).push(MaterialPageRoute(builder: (context) => RegisterPage(),));
@@ -59,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Site Watch',
+                    'Face Validator',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.black,

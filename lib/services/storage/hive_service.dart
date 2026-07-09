@@ -3,12 +3,20 @@ import 'package:hive/hive.dart';
 
 class HiveService {
   static const String userBox = "users";
+  static const String settingsBox = "settings";
+  static const String loggedInUserKey = "loggedInUser";
+
+  Future<Box> openSettingsBox() async {
+  if (!Hive.isBoxOpen(settingsBox)) {
+    return await Hive.openBox(settingsBox);
+  }
+    return Hive.box(settingsBox);
+  }
 
   Future<Box> openUserBox() async {
     if (!Hive.isBoxOpen(userBox)) {
       return await Hive.openBox(userBox);
     }
-
     return Hive.box(userBox);
   }
 
@@ -22,9 +30,10 @@ class HiveService {
     return box.get(key);
   }
 
-  Future<List<dynamic>> getAll() async {
+  Future<List<Map<String, dynamic>>> getAll() async {
     final box = await openUserBox();
-    return box.values.toList();
+    return box.values.map(
+        (e) => Map<String, dynamic>.from(e),).toList();
   }
 
   Future<void> delete(String key) async {
@@ -40,14 +49,26 @@ class HiveService {
   /// Get All Users
   Future<List<FaceRegistrationModel>> getUsers() async {
     final users = await getAll();
-
-    return users
-        .map(
+    return users.map(
           (e) => FaceRegistrationModel.fromJson(
             Map<String, dynamic>.from(e),
           ),
-        )
-        .toList();
+        ).toList();
+  }
+
+  Future<void> saveLoggedInUser(String email) async {
+  final box = await openSettingsBox();
+  await box.put(loggedInUserKey, email);
+  }
+
+  Future<String?> getLoggedInUser() async {
+    final box = await openSettingsBox();
+    return box.get(loggedInUserKey);
+  }
+
+  Future<void> logout() async {
+    final box = await openSettingsBox();
+    await box.delete(loggedInUserKey);
   }
 
   /// Check Duplicate Email

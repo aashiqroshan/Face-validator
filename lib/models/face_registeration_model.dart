@@ -59,7 +59,7 @@ class FaceRegistrationModel {
       password: json["password"],
       imagePath: json["imagePath"],
       embedding: List<double>.from(json["embedding"]),
-      metadata: FaceMetadata.fromJson(json["metadata"]),
+      metadata: FaceMetadata.fromJson(Map<String, dynamic>.from(json["metadata"]),),
       registeredAt: DateTime.parse(json["registeredAt"]),
     );
   }
@@ -130,8 +130,7 @@ class FaceMetadata {
           (json["leftEyeOpenProbability"] as num).toDouble(),
       rightEyeOpenProbability:
           (json["rightEyeOpenProbability"] as num).toDouble(),
-      boundingBox:
-          FaceBoundingBox.fromJson(json["boundingBox"]),
+      boundingBox: FaceBoundingBox.fromJson(Map<String, dynamic>.from(json["boundingBox"],),),
     );
   }
 }

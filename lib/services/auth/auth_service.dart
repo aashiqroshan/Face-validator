@@ -11,6 +11,21 @@ class AuthService {
    final HiveService _hiveService = HiveService();
     AuthService();
 
+
+
+  Future<bool> loginUser({required String email,required String password,}) async {
+    final user = await _hiveService.getUserByEmail(email);
+    if (user == null) {
+      throw Exception("User not found");
+    }
+    if (user.password != password) {
+      throw Exception("Invalid password");
+    }
+
+    await _hiveService.saveLoggedInUser(user.email);
+    return true;
+  }
+
   Future<FaceRegistrationModel> registerUser({
     required String email,
     required String password,
@@ -40,6 +55,7 @@ class AuthService {
       registeredAt: DateTime.now(),
     );
     await _hiveService.saveUser(user);
+    await _hiveService.saveLoggedInUser(user.email);
 
     return user;
   }
