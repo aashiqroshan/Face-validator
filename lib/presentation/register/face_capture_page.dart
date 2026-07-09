@@ -1,8 +1,11 @@
 import 'dart:io';
-
 import 'package:camera/camera.dart';
+import 'package:face_validator/models/live_face_result_model.dart';
 import 'package:face_validator/presentation/register/face_overlay.dart';
+import 'package:face_validator/services/face_detector_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FaceCapturePage extends StatefulWidget {
   const FaceCapturePage({super.key});
@@ -14,6 +17,15 @@ class FaceCapturePage extends StatefulWidget {
 class _FaceCapturePageState extends State<FaceCapturePage> {
   CameraController? _controller;
   bool _loading = true;
+  LiveFaceResult _result = LiveFaceResult.initial();
+  final faceDetectorService = FaceDetectorService();
+  bool _processing = false;
+
+  // Blocks new frames from being picked up once capture starts,
+  // and throttles how often we run detection on incoming frames.
+  bool _capturing = false;
+  DateTime? _lastProcessedTime;
+  static const _minFrameGap = Duration(milliseconds: 150); // ~6-7 fps
 
   @override
   void initState() {
@@ -28,25 +40,132 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
     );
     _controller = CameraController(
       front,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.nv21, // <-- fixes "Getting Image failed"
     );
     await _controller!.initialize();
     if (!mounted) return;
+    await startImageStream();
     setState(() => _loading = false);
   }
 
+  Future<void> startImageStream() async {
+    if (_processing || _capturing || _disposed || !mounted) return;
+    if (_controller == null) return;
+
+    await _controller!.startImageStream((CameraImage image) async {
+      if (_processing || _capturing) return;
+
+      final now = DateTime.now();
+      if (_lastProcessedTime != null &&
+          now.difference(_lastProcessedTime!) < _minFrameGap) {
+        return;
+      }
+      _lastProcessedTime = now;
+
+      _processing = true;
+
+      try {
+        final inputImage = _cameraImageToInputImage(image);
+
+        if (inputImage == null) {
+          _processing = false;
+          return;
+        }
+
+        final result = await faceDetectorService.detectLiveFace(
+          inputImage: inputImage,
+          previewSize: _controller!.value.previewSize!,
+        );
+
+        if (mounted && !_capturing && !_disposed) {
+          setState(() {
+            _result = result;
+          });
+        }
+      } catch (e) {
+        print('Error Ocurred: $e');
+      }
+
+      _processing = false;
+    });
+  }
+
+  InputImage? _cameraImageToInputImage(CameraImage image) {
+    if (_controller == null) return null;
+
+    final camera = _controller!.description;
+
+    final rotation = InputImageRotationValue.fromRawValue(
+      camera.sensorOrientation,
+    );
+
+    if (rotation == null) return null;
+
+    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+
+    if (format == null) return null;
+
+    final bytes = WriteBuffer();
+
+    for (final plane in image.planes) {
+      bytes.putUint8List(plane.bytes);
+    }
+
+    final byteData = bytes.done().buffer.asUint8List();
+
+    return InputImage.fromBytes(
+      bytes: byteData,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: format,
+        bytesPerRow: image.planes.first.bytesPerRow,
+      ),
+    );
+  }
+
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
+    _controller?.stopImageStream().catchError((_) {});
     _controller?.dispose();
+    faceDetectorService.dispose();
     super.dispose();
   }
 
   Future<void> captureImage() async {
-    if (_controller == null) return;
-    final XFile file = await _controller!.takePicture();
-    if (!mounted) return;
-    Navigator.pop(context, File(file.path));
+    if (_controller == null || _capturing) return;
+
+    // Stop new frames from entering the pipeline immediately.
+    _capturing = true;
+
+    try {
+      // Let any in-flight frame finish processing before touching the
+      // stream, otherwise stopImageStream() can race with ML Kit still
+      // holding a reference to the image buffer.
+      var waited = 0;
+      while (_processing && waited < 1000) {
+        await Future.delayed(const Duration(milliseconds: 20));
+        waited += 20;
+      }
+
+      await _controller!.stopImageStream();
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      final XFile file = await _controller!.takePicture();
+      if (!mounted) return;
+      Navigator.pop(context, File(file.path));
+    } catch (e) {
+      debugPrint('captureImage failed: $e');
+      _capturing = false;
+      if (mounted) {
+        await startImageStream();
+      }
+    }
   }
 
   @override
@@ -58,7 +177,7 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
       body: Stack(
         children: [
           Positioned.fill(child: CameraPreview(_controller!)),
-          const FaceOverlay(),
+          FaceOverlay(isValid: _result.hasSingleFace),
           Positioned(
             bottom: 50,
             left: 0,
@@ -66,10 +185,32 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
             child: Center(
               child: FloatingActionButton(
                 backgroundColor: Colors.white,
-                onPressed: captureImage,
-                child: const Icon(
-                  Icons.camera,
-                  color: Colors.black,
+                onPressed:
+                    _result.hasSingleFace && !_capturing ? captureImage : null,
+                child: const Icon(Icons.camera, color: Colors.black),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 140,
+            left: 20,
+            right: 20,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  _result.message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -80,10 +221,7 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
             child: SafeArea(
               child: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.close, color: Colors.white),
               ),
             ),
           ),

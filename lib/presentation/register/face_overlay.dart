@@ -1,52 +1,47 @@
 import 'package:flutter/material.dart';
 
 class FaceOverlay extends StatelessWidget {
-  const FaceOverlay({super.key});
+  final bool isValid;
+
+  const FaceOverlay({super.key, this.isValid = false});
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: CustomPaint(
         size: MediaQuery.of(context).size,
-        painter: FaceOverlayPainter(),
+        painter: FaceOverlayPainter(isValid: isValid),
       ),
     );
   }
 }
 
 class FaceOverlayPainter extends CustomPainter {
+  final bool isValid;
+
+  FaceOverlayPainter({required this.isValid});
+
   @override
   void paint(Canvas canvas, Size size) {
+    final background = Paint()..color = Colors.black.withOpacity(.55);
 
-    final background = Paint()
-      ..color = Colors.black.withOpacity(.55);
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
 
-    final rect = Rect.fromLTWH(
-      0,
-      0,
-      size.width,
-      size.height,
-    );
-
-    // CHANGED: Use Rect.fromCenter instead of fromCircle to define an oval
     final ovalRect = Rect.fromCenter(
-      center: Offset(
-        size.width / 2,
-        size.height * .48,
-      ),
-      width: 300,  // Adjust this for horizontal width
-      height: 540, // Adjust this for vertical height
+      center: Offset(size.width / 2, size.height * .48),
+      width: 300,
+      height: 540,
     );
 
     final path = Path()
       ..addRect(rect)
-      ..addOval(ovalRect) // This will now cut out an oval
-      ..fillType = PathFillType.evenOdd;  
+      ..addOval(ovalRect)
+      ..fillType = PathFillType.evenOdd;
 
     canvas.drawPath(path, background);
 
     final border = Paint()
-      ..color = Colors.white
+      ..color = isValid ? Colors.greenAccent : Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4;
 
@@ -54,7 +49,7 @@ class FaceOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
+  bool shouldRepaint(covariant FaceOverlayPainter oldDelegate) {
+    return oldDelegate.isValid != isValid;
   }
 }
