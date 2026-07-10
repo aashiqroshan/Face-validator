@@ -1,12 +1,14 @@
 import 'package:face_validator/presentation/login/login_page.dart';
 import 'package:face_validator/presentation/register/bloc/register_bloc.dart';
 import 'package:face_validator/presentation/splash/splash_screen.dart';
+import 'package:face_validator/services/face_embedding_service.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
   await Hive.initFlutter();
+  await FaceEmbeddingService().loadModel();
   runApp(MyApp());
 }
 

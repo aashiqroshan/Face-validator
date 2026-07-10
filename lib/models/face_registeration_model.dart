@@ -5,7 +5,8 @@ class FaceRegistrationModel {
   final String email;
   final String password;
   final String imagePath;
-  final List<double> embedding;
+  final String croppedImagePath;
+  final List<List<double>> embeddings;
   final FaceMetadata metadata;
 
   final DateTime registeredAt;
@@ -15,7 +16,8 @@ class FaceRegistrationModel {
     required this.email,
     required this.password,
     required this.imagePath,
-    required this.embedding,
+    required this.croppedImagePath,
+    required this.embeddings,
     required this.metadata,
     required this.registeredAt,
   });
@@ -24,8 +26,9 @@ class FaceRegistrationModel {
     String? id,
     String? email,
     String? imagePath,
+    String? croppedImagePath,
     String? password,
-    List<double>? embedding,
+    List<List<double>>? embeddings,
     FaceMetadata? metadata,
     DateTime? registeredAt,
   }) {
@@ -34,7 +37,8 @@ class FaceRegistrationModel {
       email: email ?? this.email,
       password: password ?? this.password,
       imagePath: imagePath ?? this.imagePath,
-      embedding: embedding ?? this.embedding,
+      croppedImagePath: croppedImagePath ?? this.croppedImagePath,
+      embeddings: embeddings ?? this.embeddings,
       metadata: metadata ?? this.metadata,
       registeredAt: registeredAt ?? this.registeredAt,
     );
@@ -46,7 +50,8 @@ class FaceRegistrationModel {
       "email": email,
       "password": password,
       "imagePath": imagePath,
-      "embedding": embedding,
+      "croppedImagePath": croppedImagePath,
+      "embedding": embeddings,
       "metadata": metadata.toJson(),
       "registeredAt": registeredAt.toIso8601String(),
     };
@@ -58,14 +63,16 @@ class FaceRegistrationModel {
       email: json["email"],
       password: json["password"],
       imagePath: json["imagePath"],
-      embedding: List<double>.from(json["embedding"]),
+      croppedImagePath: json["croppedImagePath"],
+      embeddings: (json["embedding"] as List).map(
+      (e) => List<double>.from(e),).toList(),
       metadata: FaceMetadata.fromJson(Map<String, dynamic>.from(json["metadata"]),),
       registeredAt: DateTime.parse(json["registeredAt"]),
     );
   }
 }
 
-class FaceMetadata {
+class FaceMetadata {  
   final double headEulerAngleX;
   final double headEulerAngleY;
   final double headEulerAngleZ;

@@ -11,7 +11,7 @@ class RegisterBloc extends ChangeNotifier {
   Future<bool> registerUser({
     required String email,
     required String password,
-    required File image,
+    required List<File> image,
   }) async {
     try {
       isLoading = true;
@@ -20,7 +20,7 @@ class RegisterBloc extends ChangeNotifier {
       await _authService.registerUser(
         email: email,
         password: password,
-        image: image,
+        images: image,
       );
 
       isLoading = false;

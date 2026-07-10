@@ -17,8 +17,7 @@ class Homescreen extends StatelessWidget {
   Future<void> _validate(BuildContext context) async {
     try {
       final image = await Navigator.push<File>(
-        context,
-        MaterialPageRoute(
+        context, MaterialPageRoute(
           builder: (_) => const FaceCapturePage(),
         ),
       );
@@ -26,6 +25,9 @@ class Homescreen extends StatelessWidget {
       if (image == null) return;
 
       final result = await _authService.validateUser(image);
+      log('zzrr ${result
+            ? "Face Verified Successfully"
+            : "Face Verification Failed"}');
 
       Fluttertoast.showToast(
         msg: result

@@ -25,6 +25,7 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLogin() async {
   final email = await _hiveService.getLoggedInUser();
   log('zzrr is null ? $email');
+  
 
   if (email == null) {
     _goToLogin();

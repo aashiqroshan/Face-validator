@@ -20,6 +20,9 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
   LiveFaceResult _result = LiveFaceResult.initial();
   final faceDetectorService = FaceDetectorService();
   bool _processing = false;
+  DateTime? _readySince;
+  bool _autoCapturing = false;
+  int _goodFrames = 0;  
 
   // Blocks new frames from being picked up once capture starts,
   // and throttles how often we run detection on incoming frames.
@@ -48,6 +51,9 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
     if (!mounted) return;
     await startImageStream();
     setState(() => _loading = false);
+    print(_controller!.value.previewSize);
+
+print(MediaQuery.of(context).size);
   }
 
   Future<void> startImageStream() async {
@@ -76,13 +82,15 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
 
         final result = await faceDetectorService.detectLiveFace(
           inputImage: inputImage,
-          previewSize: _controller!.value.previewSize!,
+          cameraImage: image,
+          previewSize:_rotatedPreviewSize,
         );
 
         if (mounted && !_capturing && !_disposed) {
           setState(() {
             _result = result;
           });
+          await _handleAutoCapture();
         }
       } catch (e) {
         print('Error Ocurred: $e');
@@ -91,6 +99,11 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
       _processing = false;
     });
   }
+
+  Size get _rotatedPreviewSize {
+  final raw = _controller!.value.previewSize!;
+  return Size(raw.height, raw.width); // 720x480 -> 480x720
+}
 
   InputImage? _cameraImageToInputImage(CameraImage image) {
     if (_controller == null) return null;
@@ -168,11 +181,59 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
     }
   }
 
+  Future<void> _handleAutoCapture() async {
+  if (_autoCapturing || _capturing) {
+    return;
+  }
+
+  if (!_result.readyToCapture) {
+    _readySince = null;
+    _goodFrames = 0;
+    return;
+  }
+
+  _goodFrames++;
+
+  if (_goodFrames < 3) {
+    return;
+  }
+
+  _readySince ??= DateTime.now();
+
+  final elapsed =
+      DateTime.now().difference(_readySince!);
+
+  if (mounted && elapsed.inMilliseconds < 800) {
+    setState(() {
+      _result = _result.copyWith(
+        message: "Hold Still...",
+      );
+    });
+
+    return;
+  }
+
+  _autoCapturing = true;
+
+  if (mounted) {
+    setState(() {
+      _result = _result.copyWith(
+        message: "Capturing...",
+      );
+    });
+  }
+
+  await captureImage();
+}
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    print("Screen : ${MediaQuery.of(context).size}");
+
+print("Preview : ${_controller?.value.previewSize}");
     return Scaffold(
       body: Stack(
         children: [
@@ -184,11 +245,9 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
             right: 0,
             child: Center(
               child: FloatingActionButton(
-                backgroundColor: Colors.white,
-                onPressed:
-                    _result.hasSingleFace && !_capturing ? captureImage : null,
-                child: const Icon(Icons.camera, color: Colors.black),
-              ),
+                onPressed: null,
+                child: Icon(Icons.camera),
+              )
             ),
           ),
           Positioned(
@@ -205,13 +264,34 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
                   color: Colors.black87,
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: Text(
-                  _result.message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+
+    Text(
+      _result.message,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    if (_readySince != null)
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: SizedBox(
+          width: 170,
+          child: LinearProgressIndicator(
+            value: (DateTime.now()
+                        .difference(_readySince!)
+                        .inMilliseconds /
+                    800)
+                .clamp(0.0, 1.0),
+          ),
+        ),
+      ),
+  ],
+),
               ),
             ),
           ),

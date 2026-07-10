@@ -1,9 +1,16 @@
 import 'dart:io';
 
+import 'package:face_validator/models/face_registeration_model.dart';
 import 'package:face_validator/presentation/homescreen/homescreen.dart';
 import 'package:face_validator/presentation/register/bloc/register_bloc.dart';
 import 'package:face_validator/presentation/register/face_capture_page.dart';
+import 'package:face_validator/services/face_blur_service.dart';
+import 'package:face_validator/services/face_crop_service.dart';
+import 'package:face_validator/services/face_detector_service.dart';
+import 'package:face_validator/services/face_embedding_service.dart';
+import 'package:face_validator/services/storage/hive_service.dart';
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 // import 'package:image_picker/image_picker.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -17,9 +24,16 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final HiveService _hiveService = HiveService();
+  final FaceDetectorService _faceDetectorService = FaceDetectorService();
+  final FaceCropService _cropService = FaceCropService();
+  final FaceEmbeddingService _embeddingService = FaceEmbeddingService();
+  final FaceBlurService _blurService = FaceBlurService();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   File? _profileImage;
+  List<File> _profileImages = [];
 
   @override
   void dispose() {
@@ -57,7 +71,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final success = await _registerBloc.registerUser(
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      image: _profileImage!,
+      image: _profileImages,
     );
 
     if (!mounted) return;
@@ -70,6 +84,27 @@ class _RegisterPageState extends State<RegisterPage> {
     }
     }catch(e){}
   }
+
+Future<void> _pickImages() async {
+  final List<File> captured = [];
+  for (int i = 0; i < 3; i++) {
+    final File? image = await Navigator.push<File>(
+      context,
+      MaterialPageRoute(builder: (_) => const FaceCapturePage()),
+    );
+    if (image == null) break; // user backed out
+    captured.add(image);
+    if (i < 2 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Got shot ${i + 1}/3 — move your head slightly and capture again")),
+      );
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+  }
+  if (captured.isNotEmpty && mounted) {
+    setState(() => _profileImages = captured);
+  }
+}
 
   void _handleGoToLogin() {
     Navigator.of(context).pop();
@@ -92,7 +127,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   // Profile image picker
                   Center(
                     child: GestureDetector(
-                      onTap: _pickImage,
+                      onTap: _pickImages,
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
