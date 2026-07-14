@@ -7,15 +7,14 @@ class LoginBloc extends ChangeNotifier {
 
   bool isLoading = false;
 
-  Future<bool> login({required String email,required String password,
-  }) async {
+  Future<bool> login({required String email, required String password}) async {
     try {
       isLoading = true;
       notifyListeners();
 
       final result = await _authService.loginUser(
-        email: email,
-        password: password,
+        email: email.trim(),
+        password: password.trim(),
       );
 
       isLoading = false;

@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class FaceRegistrationModel {
   final String id;
   final String email;

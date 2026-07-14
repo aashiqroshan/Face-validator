@@ -1,4 +1,3 @@
-import 'package:face_validator/presentation/login/login_page.dart';
 import 'package:face_validator/presentation/register/bloc/register_bloc.dart';
 import 'package:face_validator/presentation/splash/splash_screen.dart';
 import 'package:face_validator/services/face_embedding_service.dart';
@@ -18,7 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (context) => RegisterBloc(),)],
+      providers: [ChangeNotifierProvider(create: (context) => RegisterBloc())],
       child: MaterialApp(home: SplashScreen()),
     );
   }

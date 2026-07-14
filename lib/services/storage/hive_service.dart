@@ -7,9 +7,9 @@ class HiveService {
   static const String loggedInUserKey = "loggedInUser";
 
   Future<Box> openSettingsBox() async {
-  if (!Hive.isBoxOpen(settingsBox)) {
-    return await Hive.openBox(settingsBox);
-  }
+    if (!Hive.isBoxOpen(settingsBox)) {
+      return await Hive.openBox(settingsBox);
+    }
     return Hive.box(settingsBox);
   }
 
@@ -32,8 +32,7 @@ class HiveService {
 
   Future<List<Map<String, dynamic>>> getAll() async {
     final box = await openUserBox();
-    return box.values.map(
-        (e) => Map<String, dynamic>.from(e),).toList();
+    return box.values.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<void> delete(String key) async {
@@ -49,16 +48,16 @@ class HiveService {
   /// Get All Users
   Future<List<FaceRegistrationModel>> getUsers() async {
     final users = await getAll();
-    return users.map(
-          (e) => FaceRegistrationModel.fromJson(
-            Map<String, dynamic>.from(e),
-          ),
-        ).toList();
+    return users
+        .map(
+          (e) => FaceRegistrationModel.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .toList();
   }
 
   Future<void> saveLoggedInUser(String email) async {
-  final box = await openSettingsBox();
-  await box.put(loggedInUserKey, email);
+    final box = await openSettingsBox();
+    await box.put(loggedInUserKey, email);
   }
 
   Future<String?> getLoggedInUser() async {
@@ -75,9 +74,7 @@ class HiveService {
   Future<bool> isEmailExists(String email) async {
     final users = await getUsers();
 
-    return users.any(
-      (user) => user.email.toLowerCase() == email.toLowerCase(),
-    );
+    return users.any((user) => user.email.toLowerCase() == email.toLowerCase());
   }
 
   /// Get User By Email

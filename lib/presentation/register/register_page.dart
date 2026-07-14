@@ -24,90 +24,71 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final HiveService _hiveService = HiveService();
-  final FaceDetectorService _faceDetectorService = FaceDetectorService();
-  final FaceCropService _cropService = FaceCropService();
-  final FaceEmbeddingService _embeddingService = FaceEmbeddingService();
-  final FaceBlurService _blurService = FaceBlurService();
-
   bool _obscurePassword = true;
   bool _isLoading = false;
-  File? _profileImage;
   List<File> _profileImages = [];
+
+  final RegisterBloc _registerBloc = RegisterBloc();
+
+  Future<void> _pickImages() async {
+    final List<File>? images = await Navigator.push<List<File>>(
+      context,
+      MaterialPageRoute(builder: (_) => const FaceCapturePage(totalShots: 3)),
+    );
+
+    if (images != null && images.isNotEmpty) {
+      setState(() => _profileImages = images);
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    try {
+      if (!_formKey.currentState!.validate()) return;
+
+      if (_profileImages.length < 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please capture your face (3 shots).")),
+        );
+        return;
+      }
+
+      setState(() => _isLoading = true);
+
+      final success = await _registerBloc.registerUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        images: _profileImages,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Homescreen()),
+        );
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
+  }
+
+  void _handleGoToLogin() {
+    Navigator.of(context).pop();
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    final File? image = await Navigator.push<File>(
-      context,
-      MaterialPageRoute(builder: (_) => const FaceCapturePage()),
-    );
-
-    if (image != null) {
-      setState(() {
-        _profileImage = image;
-      });
-    }
-  }
-
-  final RegisterBloc _registerBloc = RegisterBloc();
-
-  Future<void> _handleRegister() async {
-    try{
-      if (!_formKey.currentState!.validate()) return;
-
-    if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please capture your face.")),
-      );
-      return;
-    }
-
-    final success = await _registerBloc.registerUser(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      image: _profileImages,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => Homescreen()),
-      );
-    }
-    }catch(e){}
-  }
-
-Future<void> _pickImages() async {
-  final List<File> captured = [];
-  for (int i = 0; i < 3; i++) {
-    final File? image = await Navigator.push<File>(
-      context,
-      MaterialPageRoute(builder: (_) => const FaceCapturePage()),
-    );
-    if (image == null) break; // user backed out
-    captured.add(image);
-    if (i < 2 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Got shot ${i + 1}/3 — move your head slightly and capture again")),
-      );
-      await Future.delayed(const Duration(milliseconds: 800));
-    }
-  }
-  if (captured.isNotEmpty && mounted) {
-    setState(() => _profileImages = captured);
-  }
-}
-
-  void _handleGoToLogin() {
-    Navigator.of(context).pop();
   }
 
   @override
@@ -134,10 +115,10 @@ Future<void> _pickImages() async {
                           CircleAvatar(
                             radius: 56,
                             backgroundColor: Colors.black.withOpacity(0.05),
-                            backgroundImage: _profileImage != null
-                                ? FileImage(_profileImage!)
+                            backgroundImage: _profileImages.isNotEmpty
+                                ? FileImage(_profileImages.first)
                                 : null,
-                            child: _profileImage == null
+                            child: _profileImages.isEmpty
                                 ? const Icon(
                                     Icons.person_outline,
                                     size: 60,
@@ -171,16 +152,15 @@ Future<void> _pickImages() async {
                   ),
                   const SizedBox(height: 12),
 
-                  // Add image button
                   Center(
                     child: TextButton.icon(
-                      onPressed: _pickImage,
+                      onPressed: _pickImages,
                       style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFFC79A00),
                       ),
                       icon: const Icon(Icons.image_outlined, size: 18),
                       label: Text(
-                        _profileImage == null ? 'Add Image' : 'Change Image',
+                        _profileImages.isEmpty ? 'Add Image' : 'Retake Photos',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -208,7 +188,6 @@ Future<void> _pickImages() async {
                   ),
                   const SizedBox(height: 32),
 
-                  // Email field
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -230,7 +209,6 @@ Future<void> _pickImages() async {
                   ),
                   const SizedBox(height: 18),
 
-                  // Password field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -262,7 +240,6 @@ Future<void> _pickImages() async {
                   ),
                   const SizedBox(height: 32),
 
-                  // Register button
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
@@ -297,7 +274,6 @@ Future<void> _pickImages() async {
                   ),
                   const SizedBox(height: 20),
 
-                  // Back to login
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

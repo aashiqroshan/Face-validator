@@ -12,47 +12,46 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
   final LoginBloc _loginBloc = LoginBloc();
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _handleLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  try {
-    final success = await _loginBloc.login(
-      email: _usernameController.text.trim(),
-      password: _passwordController.text,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => Homescreen(),
-        ),
+    try {
+      final success = await _loginBloc.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
+
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => Homescreen()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
-    );
   }
-}
 
   void _handleRegister() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => RegisterPage(),));
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => RegisterPage()));
   }
 
   @override
@@ -87,24 +86,22 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Username field
                   TextFormField(
-                    controller: _usernameController,
+                    controller: _emailController,
                     style: const TextStyle(color: Colors.black),
                     decoration: _inputDecoration(
-                      label: 'Username',
+                      label: 'Email',
                       icon: Icons.person_outline,
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Enter your username';
+                        return 'Enter your Email';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 18),
 
-                  // Password field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -139,33 +136,35 @@ class _LoginPageState extends State<LoginPage> {
                   // Login button
                   SizedBox(
                     height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
+                    child: AnimatedBuilder(
+                      animation: _loginBloc,
+                      builder: (_, __) {
+                        return SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _loginBloc.isLoading
+                                ? null
+                                : _handleLogin,
+                                style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFF2C200),
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 0,
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                valueColor:
-                                    AlwaysStoppedAnimation(Colors.black),
-                              ),
-                            )
-                          : const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
+                            child: _loginBloc.isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text("Login"),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -215,8 +214,7 @@ class _LoginPageState extends State<LoginPage> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.black.withOpacity(0.04),
-      contentPadding:
-          const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.black.withOpacity(0.15)),

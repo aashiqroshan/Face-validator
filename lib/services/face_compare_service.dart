@@ -2,10 +2,7 @@ import 'dart:math';
 
 class FaceCompareService {
   /// Cosine Similarity
-  double cosineSimilarity(
-    List<double> embedding1,
-    List<double> embedding2,
-  ) {
+  double cosineSimilarity(List<double> embedding1, List<double> embedding2) {
     if (embedding1.length != embedding2.length) {
       throw Exception("Embedding size mismatch.");
     }
@@ -22,18 +19,14 @@ class FaceCompareService {
       normB += embedding2[i] * embedding2[i];
     }
 
-    return dotProduct /
-        (sqrt(normA) * sqrt(normB));
+    return dotProduct / (sqrt(normA) * sqrt(normB));
   }
 
   bool isSamePerson(
     List<double> registeredEmbedding,
     List<double> currentEmbedding,
   ) {
-    final similarity = cosineSimilarity(
-      registeredEmbedding,
-      currentEmbedding,
-    );
+    final similarity = cosineSimilarity(registeredEmbedding, currentEmbedding);
 
     print("Similarity : $similarity");
 

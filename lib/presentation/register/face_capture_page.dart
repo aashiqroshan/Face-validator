@@ -8,7 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class FaceCapturePage extends StatefulWidget {
-  const FaceCapturePage({super.key});
+  /// Number of real photos to capture internally in one burst.
+  final int totalShots;
+
+  const FaceCapturePage({super.key, this.totalShots = 1});
 
   @override
   State<FaceCapturePage> createState() => _FaceCapturePageState();
@@ -22,13 +25,11 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
   bool _processing = false;
   DateTime? _readySince;
   bool _autoCapturing = false;
-  int _goodFrames = 0;  
+  int _goodFrames = 0;
 
-  // Blocks new frames from being picked up once capture starts,
-  // and throttles how often we run detection on incoming frames.
   bool _capturing = false;
   DateTime? _lastProcessedTime;
-  static const _minFrameGap = Duration(milliseconds: 150); // ~6-7 fps
+  static const _minFrameGap = Duration(milliseconds: 80);
 
   @override
   void initState() {
@@ -45,20 +46,18 @@ class _FaceCapturePageState extends State<FaceCapturePage> {
       front,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.nv21, // <-- fixes "Getting Image failed"
+      imageFormatGroup: ImageFormatGroup.nv21,
     );
     await _controller!.initialize();
     if (!mounted) return;
     await startImageStream();
     setState(() => _loading = false);
-    print(_controller!.value.previewSize);
-
-print(MediaQuery.of(context).size);
   }
 
   Future<void> startImageStream() async {
     if (_processing || _capturing || _disposed || !mounted) return;
     if (_controller == null) return;
+    if (_controller!.value.isStreamingImages) return;
 
     await _controller!.startImageStream((CameraImage image) async {
       if (_processing || _capturing) return;
@@ -69,12 +68,10 @@ print(MediaQuery.of(context).size);
         return;
       }
       _lastProcessedTime = now;
-
       _processing = true;
 
       try {
         final inputImage = _cameraImageToInputImage(image);
-
         if (inputImage == null) {
           _processing = false;
           return;
@@ -83,13 +80,11 @@ print(MediaQuery.of(context).size);
         final result = await faceDetectorService.detectLiveFace(
           inputImage: inputImage,
           cameraImage: image,
-          previewSize:_rotatedPreviewSize,
+          previewSize: _rotatedPreviewSize,
         );
 
         if (mounted && !_capturing && !_disposed) {
-          setState(() {
-            _result = result;
-          });
+          setState(() => _result = result);
           await _handleAutoCapture();
         }
       } catch (e) {
@@ -101,31 +96,22 @@ print(MediaQuery.of(context).size);
   }
 
   Size get _rotatedPreviewSize {
-  final raw = _controller!.value.previewSize!;
-  return Size(raw.height, raw.width); // 720x480 -> 480x720
-}
+    final raw = _controller!.value.previewSize!;
+    return Size(raw.height, raw.width);
+  }
 
   InputImage? _cameraImageToInputImage(CameraImage image) {
     if (_controller == null) return null;
-
     final camera = _controller!.description;
-
-    final rotation = InputImageRotationValue.fromRawValue(
-      camera.sensorOrientation,
-    );
-
+    final rotation = InputImageRotationValue.fromRawValue(camera.sensorOrientation);
     if (rotation == null) return null;
-
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
-
     if (format == null) return null;
 
     final bytes = WriteBuffer();
-
     for (final plane in image.planes) {
       bytes.putUint8List(plane.bytes);
     }
-
     final byteData = bytes.done().buffer.asUint8List();
 
     return InputImage.fromBytes(
@@ -150,16 +136,13 @@ print(MediaQuery.of(context).size);
     super.dispose();
   }
 
-  Future<void> captureImage() async {
+  Future<void> captureBurst() async {
     if (_controller == null || _capturing) return;
-
-    // Stop new frames from entering the pipeline immediately.
     _capturing = true;
 
+    final List<File> files = [];
+
     try {
-      // Let any in-flight frame finish processing before touching the
-      // stream, otherwise stopImageStream() can race with ML Kit still
-      // holding a reference to the image buffer.
       var waited = 0;
       while (_processing && waited < 1000) {
         await Future.delayed(const Duration(milliseconds: 20));
@@ -167,13 +150,32 @@ print(MediaQuery.of(context).size);
       }
 
       await _controller!.stopImageStream();
-      await Future.delayed(const Duration(milliseconds: 150));
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      final XFile file = await _controller!.takePicture();
+      if (mounted) {
+        setState(() => _result = _result.copyWith(message: "Capturing..."));
+      }
+
+      for (int i = 0; i < widget.totalShots; i++) {
+        if (i > 0) {
+          await Future.delayed(const Duration(milliseconds: 120));
+        }
+        final XFile file = await _controller!.takePicture();
+        files.add(File(file.path));
+
+        if (mounted) {
+          setState(() {
+            _result = _result.copyWith(
+              message: i < widget.totalShots - 1 ? "Capturing..." : "Done!",
+            );
+          });
+        }
+      }
+
       if (!mounted) return;
-      Navigator.pop(context, File(file.path));
+      Navigator.pop(context, files);
     } catch (e) {
-      debugPrint('captureImage failed: $e');
+      debugPrint('captureBurst failed: $e');
       _capturing = false;
       if (mounted) {
         await startImageStream();
@@ -182,116 +184,71 @@ print(MediaQuery.of(context).size);
   }
 
   Future<void> _handleAutoCapture() async {
-  if (_autoCapturing || _capturing) {
-    return;
+    if (_autoCapturing || _capturing) return;
+
+    if (!_result.readyToCapture) {
+      _readySince = null;
+      _goodFrames = 0;
+      return;
+    }
+
+    _goodFrames++;
+    if (_goodFrames < 2) return;
+
+    _readySince ??= DateTime.now();
+    final elapsed = DateTime.now().difference(_readySince!);
+
+    if (mounted && elapsed.inMilliseconds < 300) {
+      setState(() => _result = _result.copyWith(message: "Hold Still..."));
+      return;
+    }
+
+    _autoCapturing = true;
+    await captureBurst();
   }
-
-  if (!_result.readyToCapture) {
-    _readySince = null;
-    _goodFrames = 0;
-    return;
-  }
-
-  _goodFrames++;
-
-  if (_goodFrames < 3) {
-    return;
-  }
-
-  _readySince ??= DateTime.now();
-
-  final elapsed =
-      DateTime.now().difference(_readySince!);
-
-  if (mounted && elapsed.inMilliseconds < 800) {
-    setState(() {
-      _result = _result.copyWith(
-        message: "Hold Still...",
-      );
-    });
-
-    return;
-  }
-
-  _autoCapturing = true;
-
-  if (mounted) {
-    setState(() {
-      _result = _result.copyWith(
-        message: "Capturing...",
-      );
-    });
-  }
-
-  await captureImage();
-}
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    print("Screen : ${MediaQuery.of(context).size}");
-
-print("Preview : ${_controller?.value.previewSize}");
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(child: CameraPreview(_controller!)),
           FaceOverlay(isValid: _result.hasSingleFace),
           Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: FloatingActionButton(
-                onPressed: null,
-                child: Icon(Icons.camera),
-              )
-            ),
-          ),
-          Positioned(
             bottom: 140,
             left: 20,
             right: 20,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.black87,
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Column(
-  mainAxisSize: MainAxisSize.min,
-  children: [
-
-    Text(
-      _result.message,
-      style: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-
-    if (_readySince != null)
-      Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: SizedBox(
-          width: 170,
-          child: LinearProgressIndicator(
-            value: (DateTime.now()
-                        .difference(_readySince!)
-                        .inMilliseconds /
-                    800)
-                .clamp(0.0, 1.0),
-          ),
-        ),
-      ),
-  ],
-),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _result.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    if (_readySince != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: SizedBox(
+                          width: 170,
+                          child: LinearProgressIndicator(
+                            value: (DateTime.now().difference(_readySince!).inMilliseconds / 300)
+                                .clamp(0.0, 1.0),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

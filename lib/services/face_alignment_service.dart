@@ -8,10 +8,7 @@ class FaceAlignmentService {
     required Rect faceBox,
     required Size previewSize,
   }) {
-    final guideCenter = Offset(
-      previewSize.width / 2,
-      previewSize.height * .48,
-    );
+    final guideCenter = Offset(previewSize.width / 2, previewSize.height * .48);
 
     final faceCenter = faceBox.center;
 
@@ -34,8 +31,7 @@ class FaceAlignmentService {
       return "Move Up";
     }
 
-    final faceRatio =
-        faceBox.height / 540;
+    final faceRatio = faceBox.height / 540;
 
     if (faceRatio < _sizeTolerance) {
       return "Move Closer";

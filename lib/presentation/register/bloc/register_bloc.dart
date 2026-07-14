@@ -9,30 +9,28 @@ class RegisterBloc extends ChangeNotifier {
   bool isLoading = false;
 
   Future<bool> registerUser({
-    required String email,
-    required String password,
-    required List<File> image,
-  }) async {
-    try {
-      isLoading = true;
-      notifyListeners();
+  required String email,
+  required String password,
+  required List<File> images,
+}) async {
+  try {
+    isLoading = true;
+    notifyListeners();
 
-      await _authService.registerUser(
-        email: email,
-        password: password,
-        images: image,
-      );
+    await _authService.registerUser(
+      email: email,
+      password: password,
+      images: images,
+    );
 
-      isLoading = false;
-      notifyListeners();
-
-      return true;
-    } catch (e) {
-      isLoading = false;
-      print('Error: $e');
-      notifyListeners();
-
-      return false;
-    }
+    isLoading = false;
+    notifyListeners();
+    return true;
+  } catch (e) {
+    isLoading = false;
+    print('Error: $e');
+    notifyListeners();
+    return false;
   }
+}
 }

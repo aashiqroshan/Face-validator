@@ -109,13 +109,10 @@ class FaceDetectorService {
     }
 
     final face = faces.first;
-    final alignmentMessage =
-    _alignmentService.getAlignmentMessage(
+    final alignmentMessage = _alignmentService.getAlignmentMessage(
       faceBox: face.boundingBox,
       previewSize: previewSize,
     );
-
-    
 
     final insideGuide = _qualityService.isInsideGuide(
       face.boundingBox,
@@ -143,37 +140,37 @@ class FaceDetectorService {
       faceLargeEnough: faceLargeEnough,
       lookingStraight: lookingStraight,
       eyesVisible: eyesVisible,
-      enoughLighting: enoughLighting
+      enoughLighting: enoughLighting,
     );
 
     print(
-  'DBG previewSize=$previewSize faceBox=${face.boundingBox} '
-  'insideGuide=$insideGuide faceLargeEnough=$faceLargeEnough '
-  'lookingStraight=$lookingStraight eyesVisible=$eyesVisible '
-  'enoughLighting=$enoughLighting qualityScore=$qualityScore '
-  'alignmentMessage=$alignmentMessage',
-);
+      'DBG previewSize=$previewSize faceBox=${face.boundingBox} '
+      'insideGuide=$insideGuide faceLargeEnough=$faceLargeEnough '
+      'lookingStraight=$lookingStraight eyesVisible=$eyesVisible '
+      'enoughLighting=$enoughLighting qualityScore=$qualityScore '
+      'alignmentMessage=$alignmentMessage',
+    );
 
     final readyToCapture =
-    alignmentMessage == null &&
-    lookingStraight &&
-    eyesVisible &&
-    enoughLighting &&
-    qualityScore >= 90;
+        alignmentMessage == null &&
+        lookingStraight &&
+        eyesVisible &&
+        enoughLighting &&
+        qualityScore >= 90;
 
     String message;
 
-if (alignmentMessage != null) {
-  message = alignmentMessage;
-} else if (!lookingStraight) {
-  message = "Look Straight";
-} else if (!eyesVisible) {
-  message = "Open Both Eyes";
-} else if (!enoughLighting) {
-  message = "Improve Lighting";
-} else {
-  message = "Ready";
-}
+    if (alignmentMessage != null) {
+      message = alignmentMessage;
+    } else if (!lookingStraight) {
+      message = "Look Straight";
+    } else if (!eyesVisible) {
+      message = "Open Both Eyes";
+    } else if (!enoughLighting) {
+      message = "Improve Lighting";
+    } else {
+      message = "Ready";
+    }
 
     return LiveFaceResult(
       hasFace: true,
