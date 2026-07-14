@@ -7,7 +7,7 @@ import 'package:face_validator/services/face_blur_service.dart';
 import 'package:face_validator/services/face_crop_service.dart';
 import 'package:face_validator/services/face_detector_service.dart';
 import 'package:face_validator/services/face_embedding_service.dart';
-import 'package:face_validator/services/storage/hive_service.dart';
+import 'package:face_validator/repositories/storage/hive_service.dart';
 import 'package:uuid/uuid.dart';
 
 class AuthService {

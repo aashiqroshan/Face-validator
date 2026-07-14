@@ -3,7 +3,7 @@ import 'dart:developer';
 
 import 'package:face_validator/presentation/homescreen/homescreen.dart';
 import 'package:face_validator/presentation/login/login_page.dart';
-import 'package:face_validator/services/storage/hive_service.dart';
+import 'package:face_validator/repositories/storage/hive_service.dart';
 import 'package:flutter/material.dart';
 
 class SplashScreen extends StatefulWidget {

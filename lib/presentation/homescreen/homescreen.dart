@@ -5,7 +5,7 @@ import 'package:face_validator/presentation/login/login_page.dart';
 import 'package:face_validator/presentation/register/face_capture_page.dart';
 import 'package:face_validator/services/auth/auth_exceptions.dart';
 import 'package:face_validator/services/auth/auth_service.dart';
-import 'package:face_validator/services/storage/hive_service.dart';
+import 'package:face_validator/repositories/storage/hive_service.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
