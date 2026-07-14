@@ -11,15 +11,10 @@ dependencies:
     sdk: flutter
   google_mlkit_face_detection: ^0.14.0
   tflite_flutter: ^0.12.1
-  image_picker: ^1.1.2
   fluttertoast: ^9.1.0
-  hive: ^2.2.3
-  flutter_secure_storage: ^10.3.1
   camera: ^0.12.0+1
   image: ^4.9.1
-  path_provider: ^2.1.6
   path: ^1.9.1
-  permission_handler: ^12.0.3
   provider: ^6.1.5+1
   
 
