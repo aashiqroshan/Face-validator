@@ -8,6 +8,7 @@ import 'package:face_validator/services/face_crop_service.dart';
 import 'package:face_validator/services/face_detector_service.dart';
 import 'package:face_validator/services/face_embedding_service.dart';
 import 'package:face_validator/repositories/storage/hive_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 class AuthService {
@@ -68,12 +69,18 @@ class AuthService {
       allEmbeddings.addAll(embeddings);
     }
 
+    final appDir = await getApplicationDocumentsDirectory();
+    final userDir = Directory("${appDir.path}/users/${const Uuid().v4()}");
+    await userDir.create(recursive: true);
+    final originalImage = await images.first.copy("${userDir.path}/original.jpg",);
+    final croppedImage = await firstCropped!.copy("${userDir.path}/cropped.jpg",);
+
     final user = FaceRegistrationModel(
       id: const Uuid().v4(),
       email: email,
       password: password,
-      imagePath: images.first.path,
-      croppedImagePath: firstCropped!.path,
+      imagePath: originalImage.path,
+      croppedImagePath: croppedImage.path,
       embeddings: allEmbeddings,
       metadata: firstMetadata!,
       registeredAt: DateTime.now(),

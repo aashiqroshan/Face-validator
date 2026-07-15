@@ -124,16 +124,7 @@ class _HomescreenState extends State<Homescreen> {
                           CircleAvatar(
                             radius: 42,
                             backgroundColor: Colors.amber.shade100,
-                            backgroundImage: _user != null
-                                ? FileImage(File(_user!.imagePath))
-                                : null,
-                            child: _user == null
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 45,
-                                    color: Colors.black54,
-                                  )
-                                : null,
+                            child: ClipOval(child: _buildProfileImage()),
                           ),
                           const SizedBox(height: 16),
                           const Text(
@@ -222,6 +213,28 @@ class _HomescreenState extends State<Homescreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProfileImage() {
+    if (_user == null) {
+      return const Icon(Icons.person, size: 45, color: Colors.black54);
+    }
+
+    final imageFile = File(_user!.imagePath);
+
+    if (!imageFile.existsSync()) {
+      return const Icon(Icons.person, size: 45, color: Colors.black54);
+    }
+
+    return Image.file(
+      imageFile,
+      width: 84,
+      height: 84,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        return const Icon(Icons.person, size: 45, color: Colors.black54);
+      },
     );
   }
 }
